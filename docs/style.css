@@ -1,37 +1,72 @@
 :root {
   --bakgrund: #1e1b4b;
+  --yta: rgba(255, 255, 255, 0.1);
   --text: #f5f5f4;
   --accent: #f59e0b;
-  font-family: system-ui, sans-serif;
+  --fel: #fca5a5;
+  font-family: system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
   min-height: 100dvh;
   background: var(--bakgrund);
   color: var(--text);
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding:
+    max(1.5rem, env(safe-area-inset-top))
+    1.25rem
+    max(1.5rem, env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
 }
 
 main {
-  width: min(90vw, 40rem);
+  width: 100%;
+  max-width: 28rem;
+  margin: auto 0;
   text-align: center;
 }
 
-h1 { font-size: clamp(2rem, 6vw, 4rem); }
+section, form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 
-form { display: grid; gap: 0.75rem; }
+h1 {
+  font-size: clamp(2rem, 9vw, 4rem);
+  margin: 0 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+p { margin: 0; }
+
+/* ---------- Fält och knappar ---------- */
 
 input, button {
   font: inherit;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
+  width: 100%;
+  min-height: 3.25rem;
   padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
   border: none;
+  border-radius: 0.75rem;
+  touch-action: manipulation;
 }
+
+input {
+  background: #fff;
+  color: #1c1917;
+}
+
+input::placeholder { color: #a8a29e; }
 
 button {
   background: var(--accent);
@@ -40,31 +75,58 @@ button {
   cursor: pointer;
 }
 
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.5; }
+
 button.diskret {
   background: transparent;
   color: var(--text);
-  opacity: 0.6;
+  opacity: 0.7;
   font-weight: 400;
 }
 
-.fel { color: #fca5a5; min-height: 1.5em; }
+.fel {
+  color: var(--fel);
+  min-height: 1.5em;
+}
 
-.instruktion { font-size: 1.5rem; }
+.kodfalt {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
+
+.antal { opacity: 0.8; }
+
+/* ---------- Värdskärmen ---------- */
+
+.vard main { max-width: 60rem; }
+
+.vard section > button {
+  width: auto;
+  min-width: 16rem;
+  align-self: center;
+}
+
+.instruktion { font-size: clamp(1.1rem, 3vw, 1.75rem); }
 
 .kod {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: clamp(4rem, 15vw, 9rem);
+  font-size: clamp(3.5rem, 16vw, 9rem);
   font-weight: 800;
   letter-spacing: 0.15em;
+  text-indent: 0.15em;
   color: var(--accent);
-  margin: 0;
 }
-
-.antal { opacity: 0.8; font-size: 1.25rem; }
 
 .spelarlista {
   list-style: none;
   padding: 0;
+  margin: 1rem 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -72,21 +134,17 @@ button.diskret {
 }
 
 button.spelare {
-  background: rgba(255, 255, 255, 0.12);
+  width: auto;
+  min-height: auto;
+  padding: 0.5rem 1rem;
+  background: var(--yta);
   color: var(--text);
   font-weight: 600;
 }
 
-button.spelare:hover {
-  background: #b91c1c;
-  text-decoration: line-through;
-}
-
-.kodfalt {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  text-transform: uppercase;
-  text-align: center;
-  letter-spacing: 0.3em;
-  font-size: 2rem;
-  font-weight: 700;
+@media (hover: hover) {
+  button.spelare:hover {
+    background: #b91c1c;
+    text-decoration: line-through;
+  }
 }
