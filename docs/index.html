@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frågesport</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="spelare.js"></script>
+</head>
+<body>
+  <main>
+    <section id="anslut" hidden>
+      <h1>Frågesport</h1>
+      <form id="anslutform">
+        <input id="kod" class="kodfalt" placeholder="KOD" maxlength="5" required
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <input id="namn" placeholder="Ditt namn" maxlength="20" required autocomplete="off">
+        <button>Gå med</button>
+      </form>
+      <p id="fel" class="fel"></p>
+    </section>
+
+    <section id="vantar" hidden>
+      <p>Du är med som</p>
+      <h1 id="mittnamn"></h1>
+      <p class="antal">Väntar på att spelet ska börja …</p>
+      <button id="lamna" class="diskret">Lämna</button>
+    </section>
+  </main>
+</body>
+</html>

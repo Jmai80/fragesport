@@ -1,0 +1,92 @@
+:root {
+  --bakgrund: #1e1b4b;
+  --text: #f5f5f4;
+  --accent: #f59e0b;
+  font-family: system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bakgrund);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+main {
+  width: min(90vw, 40rem);
+  text-align: center;
+}
+
+h1 { font-size: clamp(2rem, 6vw, 4rem); }
+
+form { display: grid; gap: 0.75rem; }
+
+input, button {
+  font: inherit;
+  font-size: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+}
+
+button {
+  background: var(--accent);
+  color: #1c1917;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.diskret {
+  background: transparent;
+  color: var(--text);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.fel { color: #fca5a5; min-height: 1.5em; }
+
+.instruktion { font-size: 1.5rem; }
+
+.kod {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: clamp(4rem, 15vw, 9rem);
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  margin: 0;
+}
+
+.antal { opacity: 0.8; font-size: 1.25rem; }
+
+.spelarlista {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+button.spelare {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  font-weight: 600;
+}
+
+button.spelare:hover {
+  background: #b91c1c;
+  text-decoration: line-through;
+}
+
+.kodfalt {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 0.3em;
+  font-size: 2rem;
+  font-weight: 700;
+}

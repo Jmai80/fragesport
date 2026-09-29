@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frågesport – värd</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="vard.js"></script>
+</head>
+<body>
+  <main>
+    <section id="login" hidden>
+      <h1>Logga in som värd</h1>
+      <form id="loginform">
+        <input type="email" id="epost" placeholder="E-post" required autocomplete="username">
+        <input type="password" id="losen" placeholder="Lösenord" required autocomplete="current-password">
+        <button>Logga in</button>
+      </form>
+      <p id="loginfel" class="fel"></p>
+    </section>
+
+    <section id="start" hidden>
+      <h1>Frågesport</h1>
+      <button id="skapa">Skapa rum</button>
+      <button id="loggaut" class="diskret">Logga ut</button>
+      <p id="startfel" class="fel"></p>
+    </section>
+
+    <section id="lobby" hidden>
+      <p class="instruktion">Gå till <strong id="adress"></strong> och skriv koden</p>
+      <p id="kod" class="kod"></p>
+      <p id="antal" class="antal"></p>
+      <ul id="spelarlista" class="spelarlista"></ul>
+      <button id="avsluta" class="diskret">Avsluta rum</button>
+    </section>
+  </main>
+</body>
+</html>
