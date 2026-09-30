@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frågesport – redigera</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="redigera.js"></script>
+</head>
+<body class="redigera">
+  <main>
+    <section id="login" hidden>
+      <h1>Logga in</h1>
+      <form id="loginform">
+        <input type="email" id="epost" placeholder="E-post" required autocomplete="username">
+        <input type="password" id="losen" placeholder="Lösenord" required autocomplete="current-password">
+        <button>Logga in</button>
+      </form>
+      <p id="loginfel" class="fel"></p>
+    </section>
+
+    <section id="lista" hidden>
+      <nav class="meny">
+        <a href="vard">Till värdskärmen</a>
+        <button id="tillkonto" class="liten diskret">Konto</button>
+      </nav>
+      <h1>Frågesporter</h1>
+      <button id="nyquiz">Ny frågesport</button>
+      <h2>Mina</h2>
+      <ul id="mina" class="quizlista"></ul>
+      <h2>Andras</h2>
+      <ul id="andras" class="quizlista"></ul>
+    </section>
+
+    <section id="quiz" hidden>
+      <nav class="meny">
+        <button id="tillbaka" class="liten diskret">← Alla frågesporter</button>
+      </nav>
+      <form id="quizform">
+        <input id="titel" placeholder="Titel" required maxlength="100">
+        <textarea id="beskrivning" placeholder="Beskrivning (valfri)" rows="2" maxlength="500"></textarea>
+        <button>Spara titel och beskrivning</button>
+      </form>
+      <p id="quizstatus" class="antal"></p>
+      <h2>Frågor</h2>
+      <ol id="fragor" class="fragelista"></ol>
+      <button id="nyfraga">Lägg till fråga</button>
+      <button id="raderaquiz" class="diskret farlig">Radera frågesporten</button>
+    </section>
+
+    <section id="fragaform" hidden>
+      <h1 id="fragaformrubrik">Ny fråga</h1>
+      <form id="fragaformular">
+        <textarea id="fragatext" placeholder="Frågan" required rows="3" maxlength="300"></textarea>
+        <fieldset class="alternativfalt">
+          <legend>Svarsalternativ – markera det rätta</legend>
+          <label class="altrad rod">
+            <input type="radio" name="ratt" value="0" required aria-label="Alternativ 1 är rätt">
+            <input class="alttext" placeholder="Alternativ 1" maxlength="100">
+          </label>
+          <label class="altrad bla">
+            <input type="radio" name="ratt" value="1" aria-label="Alternativ 2 är rätt">
+            <input class="alttext" placeholder="Alternativ 2" maxlength="100">
+          </label>
+          <label class="altrad gul">
+            <input type="radio" name="ratt" value="2" aria-label="Alternativ 3 är rätt">
+            <input class="alttext" placeholder="Alternativ 3 (valfritt)" maxlength="100">
+          </label>
+          <label class="altrad gron">
+            <input type="radio" name="ratt" value="3" aria-label="Alternativ 4 är rätt">
+            <input class="alttext" placeholder="Alternativ 4 (valfritt)" maxlength="100">
+          </label>
+        </fieldset>
+        <label class="tidrad">
+          Tid i sekunder
+          <input id="tid" type="number" min="5" max="120" value="20" required>
+        </label>
+        <button>Spara frågan</button>
+        <button type="button" id="avbrytfraga" class="diskret">Avbryt</button>
+      </form>
+      <p id="fragafel" class="fel"></p>
+    </section>
+
+    <section id="konto" hidden>
+      <h1>Konto</h1>
+      <form id="namnform">
+        <label>
+          Visningsnamn
+          <input id="visningsnamn" required maxlength="40">
+        </label>
+        <button>Spara namn</button>
+      </form>
+      <form id="losenform">
+        <label>
+          Nytt lösenord
+          <input id="nyttlosen" type="password" minlength="8" required autocomplete="new-password">
+        </label>
+        <button>Byt lösenord</button>
+      </form>
+      <p id="kontostatus" class="antal"></p>
+      <button id="kontotillbaka" class="diskret">← Tillbaka</button>
+      <button id="loggaut" class="diskret">Logga ut</button>
+    </section>
+  </main>
+</body>
+</html>

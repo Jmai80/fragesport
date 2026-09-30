@@ -335,3 +335,135 @@ button.svar .symbol { font-size: 3rem; }
 }
 
 .slutplacering { font-size: clamp(5rem, 30vw, 8rem); }
+
+/* ---------- Redigeraren ---------- */
+
+.redigera main {
+  max-width: 44rem;
+  margin: 0;
+}
+
+.redigera h2 {
+  text-align: left;
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.25rem;
+}
+
+.meny {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meny a, .knapplank {
+  color: var(--text);
+  opacity: 0.8;
+}
+
+textarea {
+  font: inherit;
+  font-size: 1.125rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  resize: vertical;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.quizlista, .fragelista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quizlista li, .fragelista li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--yta);
+  text-align: left;
+}
+
+.quizlista li > div, .fraga-info {
+  flex: 1;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+li.tom {
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.info {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.fraga-knappar {
+  display: flex;
+  gap: 0.35rem;
+}
+
+button.liten {
+  width: auto;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+button.diskret.liten {
+  opacity: 1;
+  background: var(--yta);
+}
+
+button.farlig { color: var(--fel); }
+
+.alternativfalt {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+legend {
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+label.altrad {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+}
+
+label.altrad input[type="radio"] {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  min-height: auto;
+  accent-color: #fff;
+}
+
+label.altrad .alttext { flex: 1; }
+
+.tidrad input { max-width: 8rem; }
