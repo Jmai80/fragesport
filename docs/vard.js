@@ -89,13 +89,25 @@ async function oppnaRum(nyttRum) {
     .order("joined_at");
   spelare = sp ?? [];
 
-  const { data: quizzar } = await supabase
-    .from("quiz_quizzes")
-    .select("id, titel")
-    .order("created_at", { ascending: false });
-  $("quizval").innerHTML = (quizzar ?? [])
-    .map((q) => `<option value="${q.id}">${esc(q.titel)}</option>`)
-    .join("");
+  const [{ data: quizzar }, { data: profiler }] = await Promise.all([
+    supabase.from("quiz_quizzes").select("id, titel, owner_id").order("titel"),
+    supabase.from("quiz_profiles").select("user_id, namn"),
+  ]);
+
+  const namn = Object.fromEntries((profiler ?? []).map((p) => [p.user_id, p.namn]));
+  const mina = (quizzar ?? []).filter((q) => q.owner_id === rum.host_id);
+  const andras = (quizzar ?? []).filter((q) => q.owner_id !== rum.host_id);
+
+  const alternativ = (q, visaSkapare) =>
+    `<option value="${q.id}">${esc(q.titel)}${
+      visaSkapare ? ` (${esc(namn[q.owner_id] ?? "okänd")})` : ""
+    }</option>`;
+
+  $("quizval").innerHTML =
+    `<optgroup label="Mina">${mina.map((q) => alternativ(q, false)).join("")}</optgroup>` +
+    (andras.length
+      ? `<optgroup label="Andras">${andras.map((q) => alternativ(q, true)).join("")}</optgroup>`
+      : "");
 
   // En kanal för allt som händer i rummet
   kanal = supabase
