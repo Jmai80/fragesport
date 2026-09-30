@@ -296,3 +296,42 @@ select {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Spelarens mobil ---------- */
+
+body { transition: background 0.3s; }
+body[data-resultat="ratt"] { background: #15803d; }
+body[data-resultat="fel"]  { background: #b91c1c; }
+
+.mobilfraga {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.svarsknappar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+button.svar {
+  min-height: 28dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: #fff;
+  font-size: 1.125rem;
+}
+
+button.svar .symbol { font-size: 3rem; }
+
+.facitpoang {
+  font-size: 2.5rem;
+  font-weight: 800;
+}
+
+.slutplacering { font-size: clamp(5rem, 30vw, 8rem); }

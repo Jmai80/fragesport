@@ -1,14 +1,37 @@
 import { supabase } from "./supabase.js";
 
-const anslut = document.getElementById("anslut");
-const vantar = document.getElementById("vantar");
-const fel = document.getElementById("fel");
+const $ = (id) => document.getElementById(id);
 
-let jag = null;   // min rad i quiz_players
+const sektioner = {
+  anslut: $("anslut"),
+  vantar: $("vantar"),
+  fraga: $("fraga"),
+  svarat: $("svarat"),
+  facit: $("facit"),
+  slut: $("slut"),
+};
+
+const FARGER = ["rod", "bla", "gul", "gron"];
+const SYMBOLER = ["▲", "◆", "●", "■"];
+
+let jag = null;       // min rad i quiz_players
+let rum = null;       // rummets rad, uppdateras via realtid
 let kanal = null;
+let svaratPa = null;  // numret på frågan jag senast svarade på
 
-function visa(sektion) {
-  for (const s of [anslut, vantar]) s.hidden = s !== sektion;
+function visa(namn, resultat = "") {
+  for (const [n, s] of Object.entries(sektioner)) s.hidden = n !== namn;
+  document.body.dataset.resultat = resultat;
+}
+
+function esc(text) {
+  const d = document.createElement("div");
+  d.textContent = String(text ?? "");
+  return d.innerHTML;
+}
+
+function alternativText(a) {
+  return typeof a === "string" ? a : a.text ?? "";
 }
 
 // ---------- Inloggning och plats ----------
@@ -34,87 +57,202 @@ async function hittaMinPlats(userId) {
   return data;
 }
 
-// ---------- Väntläget ----------
+// ---------- Rummet ----------
 
-function borjaVanta(rad) {
+async function gaIn(rad) {
   jag = rad;
-  document.getElementById("mittnamn").textContent = rad.nickname;
+  $("mittnamn").textContent = rad.nickname;
+
+  const { data } = await supabase
+    .from("quiz_rooms")
+    .select()
+    .eq("id", rad.room_id)
+    .single();
+  rum = data;
 
   kanal = supabase
     .channel(`spelare-${rad.id}`)
     .on(
       "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "quiz_rooms", filter: `id=eq.${rad.room_id}` },
+      (p) => {
+        rum = p.new;
+        rendera();
+      }
+    )
+    .on(
+      "postgres_changes",
       { event: "DELETE", schema: "public", table: "quiz_players" },
       (p) => {
-        if (jag && p.old.id === jag.id) lamnaVantlaget("Du är inte längre med i rummet.");
+        if (jag && p.old.id === jag.id) lamnaRummet("Du är inte längre med i rummet.");
       }
     )
     .subscribe();
 
-  visa(vantar);
+  await rendera();
 }
 
-async function lamnaVantlaget(meddelande = "") {
+async function lamnaRummet(meddelande = "") {
   if (kanal) await supabase.removeChannel(kanal);
   kanal = null;
   jag = null;
-  fel.textContent = meddelande;
-  visa(anslut);
+  rum = null;
+  svaratPa = null;
+  $("fel").textContent = meddelande;
+  visa("anslut");
+}
+
+// ---------- Rendering ----------
+
+async function rendera() {
+  if (!rum) return;
+
+  switch (rum.status) {
+    case "lobby":
+      visa("vantar");
+      break;
+    case "fraga":
+      await visaFraga();
+      break;
+    case "facit":
+      await visaFacit();
+      break;
+    case "slut":
+      await visaSlut();
+      break;
+  }
+}
+
+async function visaFraga() {
+  if (svaratPa === rum.fraga_nr) {
+    visa("svarat");
+    return;
+  }
+
+  const { data: f } = await supabase.rpc("quiz_aktuell_fraga", { p_rum: rum.id });
+  if (!f) return;
+
+  $("mobilfraga").textContent = f.fraga;
+  $("svarsknappar").innerHTML = f.alternativ
+    .map(
+      (a, i) => `
+        <button class="svar ${FARGER[i % 4]}" data-i="${i}">
+          <span class="symbol">${SYMBOLER[i % 4]}</span>
+          <span>${esc(alternativText(a))}</span>
+        </button>`
+    )
+    .join("");
+
+  visa("fraga");
+}
+
+async function visaFacit() {
+  const { data: res } = await supabase.rpc("quiz_resultat", { p_rum: rum.id });
+  const mig = res?.jag;
+  if (!mig) return;
+
+  let rubrik;
+  let resultat;
+  if (mig.senaste == null) {
+    rubrik = "Inget svar";
+    resultat = "fel";
+  } else if (mig.senaste > 0) {
+    rubrik = "Rätt!";
+    resultat = "ratt";
+  } else {
+    rubrik = "Fel";
+    resultat = "fel";
+  }
+
+  $("facitrubrik").textContent = rubrik;
+  $("facitpoang").textContent = `+${mig.senaste ?? 0}`;
+  $("facitstatus").textContent = `${mig.poang} poäng · plats ${mig.placering}`;
+  visa("facit", resultat);
+}
+
+async function visaSlut() {
+  const { data: res } = await supabase.rpc("quiz_resultat", { p_rum: rum.id });
+  const mig = res?.jag;
+  if (!mig) return;
+
+  $("slutplacering").textContent = mig.placering;
+  $("slutpoang").textContent = `${mig.poang} poäng`;
+  visa("slut");
 }
 
 // ---------- Uppstart ----------
 
 const kodIUrl = new URLSearchParams(location.search).get("kod");
 if (kodIUrl) {
-  document.getElementById("kod").value = kodIUrl.toUpperCase();
-  document.getElementById("namn").focus();
+  $("kod").value = kodIUrl.toUpperCase();
+  $("namn").focus();
 }
 
 const { data: { session } } = await supabase.auth.getSession();
 const plats = session ? await hittaMinPlats(session.user.id) : null;
-if (plats) borjaVanta(plats);
-else visa(anslut);
+if (plats) await gaIn(plats);
+else visa("anslut");
 
 // ---------- Knappar ----------
 
-document.getElementById("anslutform").addEventListener("submit", async (e) => {
+$("anslutform").addEventListener("submit", async (e) => {
   e.preventDefault();
-  fel.textContent = "";
+  $("fel").textContent = "";
   const knapp = e.submitter;
   knapp.disabled = true;
 
-  const kod = document.getElementById("kod").value.trim().toUpperCase();
-  const namn = document.getElementById("namn").value.trim();
+  const kod = $("kod").value.trim().toUpperCase();
+  const namn = $("namn").value.trim();
 
   try {
     await sakerstallInloggning();
 
-    const { data: rum } = await supabase
+    const { data: hittat } = await supabase
       .from("quiz_rooms")
       .select("id, status")
       .eq("code", kod)
       .maybeSingle();
-    if (!rum) throw new Error("Hittar inget rum med den koden");
-    if (rum.status !== "lobby") throw new Error("Spelet har redan börjat");
+    if (!hittat) throw new Error("Hittar inget rum med den koden");
+    if (hittat.status !== "lobby") throw new Error("Spelet har redan börjat");
 
     const { data, error } = await supabase
       .from("quiz_players")
-      .insert({ room_id: rum.id, nickname: namn })
+      .insert({ room_id: hittat.id, nickname: namn })
       .select("id, nickname, room_id")
       .single();
     if (error?.code === "23505") throw new Error("Namnet är upptaget, välj ett annat");
     if (error) throw error;
 
-    borjaVanta(data);
+    await gaIn(data);
   } catch (err) {
-    fel.textContent = err.message;
+    $("fel").textContent = err.message;
   } finally {
     knapp.disabled = false;
   }
 });
 
-document.getElementById("lamna").addEventListener("click", async () => {
+$("svarsknappar").addEventListener("click", async (e) => {
+  const knapp = e.target.closest("button.svar");
+  if (!knapp) return;
+
+  svaratPa = rum.fraga_nr;
+  $("svarfel").textContent = "";
+  visa("svarat");
+
+  const { error } = await supabase.rpc("quiz_svara", {
+    p_rum: rum.id,
+    p_svar: Number(knapp.dataset.i),
+  });
+  if (error) $("svarfel").textContent = error.message;
+});
+
+$("lamna").addEventListener("click", async () => {
   const id = jag.id;
-  await lamnaVantlaget();
+  await lamnaRummet();
   await supabase.from("quiz_players").delete().eq("id", id);
+});
+
+$("nyttspel").addEventListener("click", async () => {
+  $("kod").value = "";
+  await lamnaRummet();
 });
