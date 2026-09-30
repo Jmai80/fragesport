@@ -36,7 +36,33 @@
       </div>
       <p id="antal" class="antal"></p>
       <ul id="spelarlista" class="spelarlista"></ul>
+      <div class="startrad">
+        <select id="quizval"></select>
+        <button id="starta">Starta</button>
+      </div>
+      <p id="lobbyfel" class="fel"></p>
       <button id="avsluta" class="diskret">Avsluta rum</button>
+    </section>
+
+    <section id="spel" hidden>
+      <div class="fragehuvud">
+        <span id="fragenr"></span>
+        <span id="nedrakning" class="nedrakning"></span>
+        <span id="svarsantal"></span>
+      </div>
+      <h1 id="fragetext" class="fragetext"></h1>
+      <ol id="alternativ" class="alternativ"></ol>
+      <div id="facitdel" hidden>
+        <ol id="topplista" class="topplista"></ol>
+        <button id="nasta">Nästa fråga</button>
+      </div>
+      <button id="visafacit" class="diskret">Visa svaret nu</button>
+    </section>
+
+    <section id="slut" hidden>
+      <h1>Resultat</h1>
+      <ol id="slutlista" class="topplista"></ol>
+      <button id="klar">Avsluta</button>
     </section>
   </main>
 </body>

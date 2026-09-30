@@ -1,16 +1,28 @@
 import { supabase } from "./supabase.js";
 import QRCode from "https://esm.sh/qrcode@1";
 
-const login = document.getElementById("login");
-const start = document.getElementById("start");
-const lobby = document.getElementById("lobby");
+const $ = (id) => document.getElementById(id);
 
-let rum = null;
+const sektioner = {
+  login: $("login"),
+  start: $("start"),
+  lobby: $("lobby"),
+  spel: $("spel"),
+  slut: $("slut"),
+};
+
+const FARGER = ["rod", "bla", "gul", "gron"];
+const SYMBOLER = ["▲", "◆", "●", "■"];
+
+let rum = null;      // rummets rad, uppdateras via realtid
 let spelare = [];
 let kanal = null;
+let fraga = null;    // aktuell fråga från quiz_aktuell_fraga
+let svar = [];       // inkomna svar på aktuell fråga
+let timer = null;
 
-function visa(sektion) {
-  for (const s of [login, start, lobby]) s.hidden = s !== sektion;
+function visa(namn) {
+  for (const [n, s] of Object.entries(sektioner)) s.hidden = n !== namn;
 }
 
 function arVard(session) {
@@ -23,11 +35,14 @@ function esc(text) {
   return d.innerHTML;
 }
 
+// Ett alternativ är en text i dag, men kan bli ett objekt med bild senare
+function alternativText(a) {
+  return typeof a === "string" ? a : a.text ?? "";
+}
+
 // ---------- Rum ----------
 
 async function skapaRum() {
-  // Koden slumpas i databasen. Krockar den med ett befintligt rum
-  // (felkod 23505 = unique violation) försöker vi igen.
   for (let forsok = 0; forsok < 3; forsok++) {
     const { data, error } = await supabase
       .from("quiz_rooms")
@@ -52,43 +67,39 @@ async function hittaOppetRum(userId) {
   return data;
 }
 
-// ---------- Lobby ----------
-
-function ritaSpelare() {
-  document.getElementById("antal").textContent =
-    spelare.length === 1 ? "1 spelare" : `${spelare.length} spelare`;
-
-  document.getElementById("spelarlista").innerHTML = spelare
-    .map(
-      (s) =>
-        `<li><button class="spelare" data-id="${s.id}" title="Klicka för att ta bort">${esc(s.nickname)}</button></li>`
-    )
-    .join("");
-}
-
-async function oppnaLobby(nyttRum) {
+async function oppnaRum(nyttRum) {
   rum = nyttRum;
 
+  // Anslutningsinfo och QR-kod
   const adress = new URL("./", location.href);
-  document.getElementById("adress").textContent = adress.host + adress.pathname;
-  document.getElementById("kod").textContent = rum.code;
-    const lank = new URL(`./?kod=${rum.code}`, location.href).href;
-  document.getElementById("qr").innerHTML = await QRCode.toString(lank, {
+  $("adress").textContent = adress.host + adress.pathname;
+  $("kod").textContent = rum.code;
+  const lank = new URL(`./?kod=${rum.code}`, location.href).href;
+  $("qr").innerHTML = await QRCode.toString(lank, {
     type: "svg",
     margin: 1,
     color: { dark: "#1c1917", light: "#ffffff" },
   });
 
-  const { data } = await supabase
+  // Spelare och frågesporter
+  const { data: sp } = await supabase
     .from("quiz_players")
     .select("id, nickname")
     .eq("room_id", rum.id)
     .order("joined_at");
-  spelare = data ?? [];
-  ritaSpelare();
+  spelare = sp ?? [];
 
+  const { data: quizzar } = await supabase
+    .from("quiz_quizzes")
+    .select("id, titel")
+    .order("created_at", { ascending: false });
+  $("quizval").innerHTML = (quizzar ?? [])
+    .map((q) => `<option value="${q.id}">${esc(q.titel)}</option>`)
+    .join("");
+
+  // En kanal för allt som händer i rummet
   kanal = supabase
-    .channel(`lobby-${rum.id}`)
+    .channel(`rum-${rum.id}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "quiz_players", filter: `room_id=eq.${rum.id}` },
@@ -106,66 +117,231 @@ async function oppnaLobby(nyttRum) {
         ritaSpelare();
       }
     )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "quiz_rooms", filter: `id=eq.${rum.id}` },
+      (p) => {
+        rum = p.new;
+        rendera();
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "quiz_answers", filter: `room_id=eq.${rum.id}` },
+      (p) => {
+        if (p.new.fraga_nr !== rum.fraga_nr) return;
+        svar.push(p.new);
+        ritaSvarsantal();
+      }
+    )
     .subscribe();
 
-  visa(lobby);
+  await rendera();
 }
 
-async function stangLobby() {
+async function stangRum() {
+  clearInterval(timer);
   if (kanal) await supabase.removeChannel(kanal);
   kanal = null;
   rum = null;
   spelare = [];
+  fraga = null;
+  svar = [];
+}
+
+// ---------- Rendering ----------
+
+async function rendera() {
+  clearInterval(timer);
+
+  if (rum.status === "lobby") {
+    ritaSpelare();
+    visa("lobby");
+    return;
+  }
+
+  if (rum.status === "slut") {
+    const { data: res } = await supabase.rpc("quiz_resultat", { p_rum: rum.id });
+    $("slutlista").innerHTML = topplistaHtml(res?.topplista ?? []);
+    visa("slut");
+    return;
+  }
+
+  // Läget är "fraga" eller "facit"
+  const { data } = await supabase.rpc("quiz_aktuell_fraga", { p_rum: rum.id });
+  fraga = data;
+
+  const { data: inkomna } = await supabase
+    .from("quiz_answers")
+    .select("svar")
+    .eq("room_id", rum.id)
+    .eq("fraga_nr", rum.fraga_nr);
+  svar = inkomna ?? [];
+
+  const facit = rum.status === "facit";
+
+  $("fragenr").textContent = `Fråga ${fraga.nr} av ${fraga.antal}`;
+  $("fragetext").textContent = fraga.fraga;
+  $("nedrakning").hidden = facit;
+  $("visafacit").hidden = facit;
+  $("facitdel").hidden = !facit;
+  ritaAlternativ();
+  ritaSvarsantal();
+
+  if (facit) {
+    const { data: res } = await supabase.rpc("quiz_resultat", { p_rum: rum.id });
+    $("topplista").innerHTML = topplistaHtml((res?.topplista ?? []).slice(0, 5));
+    $("nasta").textContent = fraga.nr === fraga.antal ? "Visa resultat" : "Nästa fråga";
+  } else {
+    startaNedrakning(fraga.kvar_ms);
+  }
+
+  visa("spel");
+}
+
+function ritaSpelare() {
+  $("antal").textContent =
+    spelare.length === 1 ? "1 spelare" : `${spelare.length} spelare`;
+
+  $("spelarlista").innerHTML = spelare
+    .map(
+      (s) =>
+        `<li><button class="spelare" data-id="${s.id}" title="Klicka för att ta bort">${esc(s.nickname)}</button></li>`
+    )
+    .join("");
+}
+
+function ritaAlternativ() {
+  const facit = rum.status === "facit";
+
+  $("alternativ").innerHTML = fraga.alternativ
+    .map((a, i) => {
+      const klasser = [FARGER[i % 4]];
+      if (facit) klasser.push(i === fraga.ratt ? "ratt-alt" : "fel-alt");
+      const antal = svar.filter((s) => s.svar === i).length;
+
+      return `
+        <li class="${klasser.join(" ")}">
+          <span class="symbol">${SYMBOLER[i % 4]}</span>
+          <span class="alt-text">${esc(alternativText(a))}</span>
+          ${facit ? `<span class="alt-antal">${antal}</span>` : ""}
+        </li>`;
+    })
+    .join("");
+}
+
+function ritaSvarsantal() {
+  $("svarsantal").textContent = `${svar.length} av ${spelare.length} svar`;
+
+  // Alla har svarat: visa facit direkt i stället för att vänta ut tiden
+  if (rum.status === "fraga" && spelare.length > 0 && svar.length >= spelare.length) {
+    visaFacit();
+  }
+}
+
+function topplistaHtml(lista) {
+  return lista
+    .map(
+      (p) => `
+        <li>
+          <span class="placering">${p.placering}</span>
+          <span class="namn">${esc(p.namn)}</span>
+          <span class="poang">${p.poang}</span>
+        </li>`
+    )
+    .join("");
+}
+
+function startaNedrakning(ms) {
+  const slut = Date.now() + ms;
+
+  const tick = () => {
+    const kvar = Math.max(0, Math.ceil((slut - Date.now()) / 1000));
+    $("nedrakning").textContent = kvar;
+    if (kvar === 0) {
+      clearInterval(timer);
+      visaFacit();
+    }
+  };
+
+  tick();
+  timer = setInterval(tick, 250);
+}
+
+async function visaFacit() {
+  if (rum?.status !== "fraga") return;
+  await supabase.rpc("quiz_facit", { p_rum: rum.id });
 }
 
 // ---------- Uppstart ----------
 
 async function efterInloggning(user) {
   const oppet = await hittaOppetRum(user.id);
-  if (oppet) await oppnaLobby(oppet);
-  else visa(start);
+  if (oppet) await oppnaRum(oppet);
+  else visa("start");
 }
 
 const { data: { session } } = await supabase.auth.getSession();
 if (arVard(session)) await efterInloggning(session.user);
-else visa(login);
+else visa("login");
 
 // ---------- Knappar ----------
 
-document.getElementById("loginform").addEventListener("submit", async (e) => {
+$("loginform").addEventListener("submit", async (e) => {
   e.preventDefault();
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: document.getElementById("epost").value,
-    password: document.getElementById("losen").value,
+    email: $("epost").value,
+    password: $("losen").value,
   });
   if (error) {
-    document.getElementById("loginfel").textContent = "Fel e-post eller lösenord";
+    $("loginfel").textContent = "Fel e-post eller lösenord";
     return;
   }
   await efterInloggning(data.user);
 });
 
-document.getElementById("loggaut").addEventListener("click", async () => {
+$("loggaut").addEventListener("click", async () => {
   await supabase.auth.signOut();
-  visa(login);
+  visa("login");
 });
 
-document.getElementById("skapa").addEventListener("click", async () => {
+$("skapa").addEventListener("click", async () => {
   try {
-    await oppnaLobby(await skapaRum());
+    await oppnaRum(await skapaRum());
   } catch (err) {
-    document.getElementById("startfel").textContent = err.message;
+    $("startfel").textContent = err.message;
   }
 });
 
-document.getElementById("avsluta").addEventListener("click", async () => {
-  if (!confirm("Avsluta rummet? Alla spelare kopplas bort.")) return;
-  await supabase.from("quiz_rooms").delete().eq("id", rum.id);
-  await stangLobby();
-  visa(start);
+$("starta").addEventListener("click", async () => {
+  $("lobbyfel").textContent = "";
+  const { error } = await supabase.rpc("quiz_starta", {
+    p_rum: rum.id,
+    p_quiz: $("quizval").value,
+  });
+  if (error) $("lobbyfel").textContent = error.message;
 });
 
-document.getElementById("spelarlista").addEventListener("click", async (e) => {
+$("visafacit").addEventListener("click", visaFacit);
+
+$("nasta").addEventListener("click", async () => {
+  await supabase.rpc("quiz_nasta", { p_rum: rum.id });
+});
+
+async function avslutaRum() {
+  await supabase.from("quiz_rooms").delete().eq("id", rum.id);
+  await stangRum();
+  visa("start");
+}
+
+$("avsluta").addEventListener("click", async () => {
+  if (!confirm("Avsluta rummet? Alla spelare kopplas bort.")) return;
+  await avslutaRum();
+});
+
+$("klar").addEventListener("click", avslutaRum);
+
+$("spelarlista").addEventListener("click", async (e) => {
   const knapp = e.target.closest("button.spelare");
   if (!knapp) return;
   if (!confirm(`Ta bort ${knapp.textContent}?`)) return;

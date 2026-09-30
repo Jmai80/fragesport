@@ -176,3 +176,123 @@ button.spelare {
     text-decoration: line-through;
   }
 }
+
+/* ---------- Spelet ---------- */
+
+.startrad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.startrad select,
+.startrad button,
+#facitdel button {
+  width: auto;
+  min-width: 12rem;
+}
+
+select {
+  font: inherit;
+  font-size: 1.125rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.75rem;
+}
+
+.fragehuvud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.25rem;
+  opacity: 0.9;
+}
+
+.nedrakning {
+  font-size: 2.5rem;
+  font-weight: 800;
+  min-width: 3ch;
+}
+
+.fragetext {
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  margin: 1rem 0;
+}
+
+.alternativ {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.alternativ li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  color: #fff;
+  font-size: clamp(1.25rem, 2.5vw, 2rem);
+  font-weight: 700;
+  text-align: left;
+  transition: opacity 0.3s;
+}
+
+.symbol { font-size: 1.5em; line-height: 1; }
+.alt-text { flex: 1; }
+.alt-antal { font-size: 1.25em; }
+
+.rod  { background: #dc2626; }
+.bla  { background: #2563eb; }
+.gul  { background: #ca8a04; }
+.gron { background: #16a34a; }
+
+.alternativ .fel-alt { opacity: 0.3; }
+.alternativ .ratt-alt { outline: 4px solid #fff; outline-offset: 2px; }
+
+#facitdel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topplista {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  width: 100%;
+  max-width: 36rem;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.topplista li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--yta);
+  font-size: 1.25rem;
+}
+
+.placering {
+  min-width: 2ch;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.namn { flex: 1; text-align: left; }
+
+.poang {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
