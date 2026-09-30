@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import QRCode from "https://esm.sh/qrcode@1";
 
 const login = document.getElementById("login");
 const start = document.getElementById("start");
@@ -71,6 +72,12 @@ async function oppnaLobby(nyttRum) {
   const adress = new URL("./", location.href);
   document.getElementById("adress").textContent = adress.host + adress.pathname;
   document.getElementById("kod").textContent = rum.code;
+    const lank = new URL(`./?kod=${rum.code}`, location.href).href;
+  document.getElementById("qr").innerHTML = await QRCode.toString(lank, {
+    type: "svg",
+    margin: 1,
+    color: { dark: "#1c1917", light: "#ffffff" },
+  });
 
   const { data } = await supabase
     .from("quiz_players")

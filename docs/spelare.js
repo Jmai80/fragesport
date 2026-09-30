@@ -65,7 +65,10 @@ async function lamnaVantlaget(meddelande = "") {
 // ---------- Uppstart ----------
 
 const kodIUrl = new URLSearchParams(location.search).get("kod");
-if (kodIUrl) document.getElementById("kod").value = kodIUrl.toUpperCase();
+if (kodIUrl) {
+  document.getElementById("kod").value = kodIUrl.toUpperCase();
+  document.getElementById("namn").focus();
+}
 
 const { data: { session } } = await supabase.auth.getSession();
 const plats = session ? await hittaMinPlats(session.user.id) : null;

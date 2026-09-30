@@ -142,6 +142,34 @@ button.spelare {
   font-weight: 600;
 }
 
+.anslutning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.koddel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.qr {
+  width: clamp(10rem, 25vw, 16rem);
+  padding: 0.75rem;
+  background: #fff;
+  border-radius: 1rem;
+  line-height: 0;
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (hover: hover) {
   button.spelare:hover {
     background: #b91c1c;
