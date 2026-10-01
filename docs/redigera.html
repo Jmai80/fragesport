@@ -51,8 +51,46 @@
     <section id="fragaform" hidden>
       <h1 id="fragaformrubrik">Ny fråga</h1>
       <form id="fragaformular">
+        <label>
+          Frågetyp
+          <select id="fragetyp">
+            <option value="flerval">Flerval</option>
+            <option value="nummer">Årtal eller tal</option>
+          </select>
+        </label>
+
         <textarea id="fragatext" placeholder="Frågan" required rows="3" maxlength="300"></textarea>
-        <fieldset class="alternativfalt">
+
+        <div class="mediaval">
+          <div class="mediaflikar">
+            <button type="button" class="liten diskret" data-flik="ingen">Ingen media</button>
+            <button type="button" class="liten diskret" data-flik="musik">🎵 Musik</button>
+            <button type="button" class="liten diskret" data-flik="bild">🖼 Bild</button>
+          </div>
+          <div id="valtmedia"></div>
+
+          <div id="flikmusik" class="flik" hidden>
+            <div class="sokrad">
+              <input id="musiksok" type="search" placeholder="Sök låt eller artist">
+              <button type="button" id="musiksokknapp" class="liten">Sök</button>
+            </div>
+            <ul id="musikresultat" class="mediaresultat"></ul>
+          </div>
+
+          <div id="flikbild" class="flik" hidden>
+            <div class="sokrad">
+              <input id="bildsok" type="search" placeholder="Sök bild på Wikimedia Commons">
+              <button type="button" id="bildsokknapp" class="liten">Sök</button>
+            </div>
+            <ul id="bildresultat" class="bildresultat"></ul>
+            <div class="sokrad">
+              <input id="bildurl" type="url" placeholder="… eller klistra in en bildadress">
+              <button type="button" id="bildurlknapp" class="liten">Använd</button>
+            </div>
+          </div>
+        </div>
+
+        <fieldset id="alternativfalt" class="alternativfalt">
           <legend>Svarsalternativ – markera det rätta</legend>
           <label class="altrad rod">
             <input type="radio" name="ratt" value="0" required aria-label="Alternativ 1 är rätt">
@@ -71,6 +109,19 @@
             <input class="alttext" placeholder="Alternativ 4 (valfritt)" maxlength="100">
           </label>
         </fieldset>
+
+        <fieldset id="nummerfalt" class="nummerfalt" hidden disabled>
+          <legend>Rätt svar</legend>
+          <label>
+            Svar
+            <input id="nummersvar" type="number" step="any" required>
+          </label>
+          <label>
+            Poäng ges om man är inom ±
+            <input id="marginal" type="number" min="1" step="any" value="10" required>
+          </label>
+        </fieldset>
+
         <label class="tidrad">
           Tid i sekunder
           <input id="tid" type="number" min="5" max="120" value="20" required>
