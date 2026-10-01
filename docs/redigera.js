@@ -241,6 +241,7 @@ function ritaValtMedia() {
           </div>
         </div>
       </div>`;
+        uppdateraSpelknappar();
     return;
   }
 
@@ -282,6 +283,25 @@ async function spela(id, start = 0) {
   await ljudspelare.play();
 }
 
+function uppdateraSpelknappar() {
+  const spelar = (id) => spelarId === id && !ljudspelare.paused;
+
+  document.querySelectorAll("[data-spela]").forEach((knapp) => {
+    const pa = spelar(knapp.dataset.spela);
+    knapp.textContent = pa ? "⏸" : "▶";
+    knapp.setAttribute("aria-label", pa ? "Pausa" : "Provlyssna");
+  });
+
+  const provspela = $("provspela");
+  if (provspela && valtMedia) {
+    provspela.textContent = spelar(valtMedia.ref) ? "⏸ Pausa" : "▶ Provlyssna";
+  }
+}
+
+ljudspelare.addEventListener("play", uppdateraSpelknappar);
+ljudspelare.addEventListener("pause", uppdateraSpelknappar);
+ljudspelare.addEventListener("ended", uppdateraSpelknappar);
+
 // ---------- Sökning ----------
 
 async function sokMusik() {
@@ -308,6 +328,7 @@ async function sokMusik() {
             </li>`
         )
         .join("") || `<li class="tom">Inga träffar</li>`;
+        uppdateraSpelknappar();
   } catch (err) {
     $("musikresultat").innerHTML = `<li class="tom">${esc(err.message)}</li>`;
   }
