@@ -426,7 +426,7 @@ function tolkaImport(text) {
     // Årtals- eller sifferfråga: = 1974 ± 5
     const svarsrad = resten.find((r) => r.startsWith("="));
     if (svarsrad) {
-      const m = svarsrad.match(/^=\s*(-?[\d\s.,]+?)\s*(?:(?:±|\+-|\+\/-)\s*([\d.,]+))?\s*$/);
+      const m = svarsrad.match(/^=\s*(-?[\d\s.,]+?)\s*(?:(?:±|\+-|\+\/-)\s*([\d\s.,]+?))?\s*$/);
       if (!m) return { nr, fraga, fel: `Kunde inte läsa svaret "${svarsrad}"` };
 
       const svar = tal(m[1]);
