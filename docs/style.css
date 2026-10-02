@@ -596,3 +596,104 @@ label.ljudstart input {
   flex-direction: column;
   gap: 0.5rem;
 }
+
+/* ---------- Media och årtal i spelet ---------- */
+
+.fragemedia figure {
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fragemedia img {
+  max-width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  border-radius: 0.75rem;
+}
+
+.fragemedia figcaption {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.ljudkort {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.ljudkort img {
+  width: 8rem;
+  height: 8rem;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+
+button.ljudknapp {
+  flex: none;
+  width: 5rem;
+  height: 5rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 2rem;
+}
+
+.ljudinfo {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  font-size: 1.5rem;
+}
+
+.nummerfacit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nummersvar {
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.narmast {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.narmast li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--yta);
+  font-size: 1.25rem;
+}
+
+.mobilbild {
+  align-self: center;
+  max-width: 100%;
+  max-height: 30dvh;
+  object-fit: contain;
+  border-radius: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.nummerform input {
+  font-size: 2rem;
+  text-align: center;
+}

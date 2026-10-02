@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { bildUrl } from "./media.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,6 +19,7 @@ let jag = null;       // min rad i quiz_players
 let rum = null;       // rummets rad, uppdateras via realtid
 let kanal = null;
 let svaratPa = null;  // numret på frågan jag senast svarade på
+let mittSvar = null;  // vad jag svarade
 
 function visa(namn, resultat = "") {
   for (const [n, s] of Object.entries(sektioner)) s.hidden = n !== namn;
@@ -31,7 +33,7 @@ function esc(text) {
 }
 
 function alternativText(a) {
-  return typeof a === "string" ? a : a.text ?? "";
+  return typeof a === "string" ? a : a?.text ?? "";
 }
 
 // ---------- Inloggning och plats ----------
@@ -98,6 +100,7 @@ async function lamnaRummet(meddelande = "") {
   jag = null;
   rum = null;
   svaratPa = null;
+  mittSvar = null;
   $("fel").textContent = meddelande;
   visa("anslut");
 }
@@ -132,30 +135,60 @@ async function visaFraga() {
   const { data: f } = await supabase.rpc("quiz_aktuell_fraga", { p_rum: rum.id });
   if (!f) return;
 
-  $("mobilfraga").textContent = f.fraga;
-  $("svarsknappar").innerHTML = f.alternativ
-    .map(
-      (a, i) => `
-        <button class="svar ${FARGER[i % 4]}" data-i="${i}">
-          <span class="symbol">${SYMBOLER[i % 4]}</span>
-          <span>${esc(alternativText(a))}</span>
-        </button>`
-    )
-    .join("");
+  const nummer = f.typ === "nummer";
+  const bild = bildUrl(f.media, 600);
+
+  $("mobilfraga").textContent = (f.media?.typ === "ljud" ? "🎵 " : "") + f.fraga;
+  $("mobilbild").hidden = !bild;
+  if (bild) $("mobilbild").src = bild;
+
+  $("svarsknappar").hidden = nummer;
+  $("nummerform").hidden = !nummer;
+
+  if (nummer) {
+    $("nummerinput").value = "";
+  } else {
+    $("svarsknappar").innerHTML = f.alternativ
+      .map(
+        (a, i) => `
+          <button class="svar ${FARGER[i % 4]}" data-i="${i}">
+            <span class="symbol">${SYMBOLER[i % 4]}</span>
+            <span>${esc(alternativText(a))}</span>
+          </button>`
+      )
+      .join("");
+  }
 
   visa("fraga");
+  if (nummer) $("nummerinput").focus();
 }
 
 async function visaFacit() {
-  const { data: res } = await supabase.rpc("quiz_resultat", { p_rum: rum.id });
+  const [{ data: res }, { data: f }] = await Promise.all([
+    supabase.rpc("quiz_resultat", { p_rum: rum.id }),
+    supabase.rpc("quiz_aktuell_fraga", { p_rum: rum.id }),
+  ]);
   const mig = res?.jag;
   if (!mig) return;
 
+  const nummer = f?.typ === "nummer";
   let rubrik;
   let resultat;
+
   if (mig.senaste == null) {
     rubrik = "Inget svar";
     resultat = "fel";
+  } else if (nummer) {
+    if (mig.senaste === 1000) {
+      rubrik = "Exakt!";
+      resultat = "ratt";
+    } else if (mig.senaste > 0) {
+      rubrik = "Nära!";
+      resultat = "ratt";
+    } else {
+      rubrik = "För långt bort";
+      resultat = "fel";
+    }
   } else if (mig.senaste > 0) {
     rubrik = "Rätt!";
     resultat = "ratt";
@@ -164,8 +197,15 @@ async function visaFacit() {
     resultat = "fel";
   }
 
+  let detalj = "";
+  if (nummer) {
+    detalj = `Rätt svar: ${f.ratt.svar}`;
+    if (svaratPa === rum.fraga_nr && mittSvar != null) detalj += ` · du svarade ${mittSvar}`;
+  }
+
   $("facitrubrik").textContent = rubrik;
   $("facitpoang").textContent = `+${mig.senaste ?? 0}`;
+  $("facitdetalj").textContent = detalj;
   $("facitstatus").textContent = `${mig.poang} poäng · plats ${mig.placering}`;
   visa("facit", resultat);
 }
@@ -178,6 +218,16 @@ async function visaSlut() {
   $("slutplacering").textContent = mig.placering;
   $("slutpoang").textContent = `${mig.poang} poäng`;
   visa("slut");
+}
+
+async function skickaSvar(varde) {
+  svaratPa = rum.fraga_nr;
+  mittSvar = varde;
+  $("svarfel").textContent = "";
+  visa("svarat");
+
+  const { error } = await supabase.rpc("quiz_svara", { p_rum: rum.id, p_svar: varde });
+  if (error) $("svarfel").textContent = error.message;
 }
 
 // ---------- Uppstart ----------
@@ -231,19 +281,15 @@ $("anslutform").addEventListener("submit", async (e) => {
   }
 });
 
-$("svarsknappar").addEventListener("click", async (e) => {
+$("svarsknappar").addEventListener("click", (e) => {
   const knapp = e.target.closest("button.svar");
   if (!knapp) return;
+  skickaSvar(Number(knapp.dataset.i));
+});
 
-  svaratPa = rum.fraga_nr;
-  $("svarfel").textContent = "";
-  visa("svarat");
-
-  const { error } = await supabase.rpc("quiz_svara", {
-    p_rum: rum.id,
-    p_svar: Number(knapp.dataset.i),
-  });
-  if (error) $("svarfel").textContent = error.message;
+$("nummerform").addEventListener("submit", (e) => {
+  e.preventDefault();
+  skickaSvar(Number($("nummerinput").value));
 });
 
 $("lamna").addEventListener("click", async () => {

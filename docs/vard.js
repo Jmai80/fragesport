@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import QRCode from "https://esm.sh/qrcode@1";
+import { hamtaLat, bildUrl } from "./media.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -21,6 +22,9 @@ let fraga = null;    // aktuell fråga från quiz_aktuell_fraga
 let svar = [];       // inkomna svar på aktuell fråga
 let timer = null;
 
+const ljud = new Audio();
+let ljudFragaNr = null; // vilken fråga ljudet hör till
+
 function visa(namn) {
   for (const [n, s] of Object.entries(sektioner)) s.hidden = n !== namn;
 }
@@ -35,9 +39,8 @@ function esc(text) {
   return d.innerHTML;
 }
 
-// Ett alternativ är en text i dag, men kan bli ett objekt med bild senare
 function alternativText(a) {
-  return typeof a === "string" ? a : a.text ?? "";
+  return typeof a === "string" ? a : a?.text ?? "";
 }
 
 // ---------- Rum ----------
@@ -81,7 +84,7 @@ async function oppnaRum(nyttRum) {
     color: { dark: "#1c1917", light: "#ffffff" },
   });
 
-  // Spelare och frågesporter
+  // Spelare
   const { data: sp } = await supabase
     .from("quiz_players")
     .select("id, nickname")
@@ -89,6 +92,7 @@ async function oppnaRum(nyttRum) {
     .order("joined_at");
   spelare = sp ?? [];
 
+  // Frågesporter, egna och andras
   const [{ data: quizzar }, { data: profiler }] = await Promise.all([
     supabase.from("quiz_quizzes").select("id, titel, owner_id").order("titel"),
     supabase.from("quiz_profiles").select("user_id, namn"),
@@ -153,6 +157,8 @@ async function oppnaRum(nyttRum) {
 
 async function stangRum() {
   clearInterval(timer);
+  ljud.pause();
+  ljudFragaNr = null;
   if (kanal) await supabase.removeChannel(kanal);
   kanal = null;
   rum = null;
@@ -161,10 +167,42 @@ async function stangRum() {
   svar = [];
 }
 
+// ---------- Ljud ----------
+
+async function startaLjud(m) {
+  const lat = await hamtaLat(m.ref);
+  if (!lat?.ljud) return;
+
+  ljud.src = lat.ljud;
+  ljud.currentTime = m.start ?? 0;
+  try {
+    await ljud.play();
+  } catch {
+    // Webbläsaren kan blockera uppspelning som inte startats av ett klick.
+    // Då visar knappen ▶ och värden startar klippet själv.
+  }
+}
+
+function uppdateraLjudknapp() {
+  const knapp = $("ljudknapp");
+  if (!knapp) return;
+  knapp.textContent = ljud.paused ? "▶" : "⏸";
+  knapp.setAttribute("aria-label", ljud.paused ? "Spela" : "Pausa");
+}
+
+ljud.addEventListener("play", uppdateraLjudknapp);
+ljud.addEventListener("pause", uppdateraLjudknapp);
+ljud.addEventListener("ended", uppdateraLjudknapp);
+
 // ---------- Rendering ----------
 
 async function rendera() {
   clearInterval(timer);
+
+  if (rum.status === "lobby" || rum.status === "slut") {
+    ljud.pause();
+    ljudFragaNr = null;
+  }
 
   if (rum.status === "lobby") {
     ritaSpelare();
@@ -185,10 +223,22 @@ async function rendera() {
 
   const { data: inkomna } = await supabase
     .from("quiz_answers")
-    .select("svar")
+    .select("svar, player_id")
     .eq("room_id", rum.id)
     .eq("fraga_nr", rum.fraga_nr);
   svar = inkomna ?? [];
+
+  // Ljudet startar en gång per fråga och fortsätter in i facit
+  if (fraga.media?.typ === "ljud") {
+    if (ljudFragaNr !== rum.fraga_nr) {
+      ljudFragaNr = rum.fraga_nr;
+      ljud.pause();
+      startaLjud(fraga.media);
+    }
+  } else {
+    ljud.pause();
+    ljudFragaNr = null;
+  }
 
   const facit = rum.status === "facit";
 
@@ -197,7 +247,9 @@ async function rendera() {
   $("nedrakning").hidden = facit;
   $("visafacit").hidden = facit;
   $("facitdel").hidden = !facit;
+  ritaMedia();
   ritaAlternativ();
+  ritaNummerfacit();
   ritaSvarsantal();
 
   if (facit) {
@@ -223,7 +275,49 @@ function ritaSpelare() {
     .join("");
 }
 
+function ritaMedia() {
+  const m = fraga.media;
+  const facit = rum.status === "facit";
+
+  if (m?.typ === "bild") {
+    const kalla =
+      m.kalla === "wikimedia"
+        ? `${esc(m.upphov || "Okänd upphovsperson")} · ${esc(m.licens)} · Wikimedia Commons`
+        : "";
+    $("fragemedia").innerHTML = `
+      <figure>
+        <img src="${esc(bildUrl(m, 1200))}" alt="">
+        <figcaption>${kalla}</figcaption>
+      </figure>`;
+    return;
+  }
+
+  if (m?.typ === "ljud") {
+    // Under frågan avslöjas inte låten, i facit visas omslag, titel och artist
+    $("fragemedia").innerHTML = `
+      <div class="ljudkort">
+        ${facit && m.bild ? `<img src="${esc(m.bild)}" alt="">` : ""}
+        <button id="ljudknapp" class="ljudknapp">⏸</button>
+        <div class="ljudinfo">
+          ${facit
+            ? `<strong>${esc(m.titel)}</strong><span>${esc(m.artist)}</span>`
+            : `<strong>Lyssna!</strong>`}
+        </div>
+      </div>`;
+    uppdateraLjudknapp();
+    return;
+  }
+
+  $("fragemedia").innerHTML = "";
+}
+
 function ritaAlternativ() {
+  if (fraga.typ === "nummer") {
+    $("alternativ").hidden = true;
+    return;
+  }
+  $("alternativ").hidden = false;
+
   const facit = rum.status === "facit";
 
   $("alternativ").innerHTML = fraga.alternativ
@@ -240,6 +334,39 @@ function ritaAlternativ() {
         </li>`;
     })
     .join("");
+}
+
+function ritaNummerfacit() {
+  if (fraga.typ !== "nummer") {
+    $("nummerfacit").hidden = true;
+    return;
+  }
+  $("nummerfacit").hidden = false;
+
+  if (rum.status !== "facit") {
+    $("nummerfacit").innerHTML = `<p class="instruktion">Skriv ditt svar på mobilen</p>`;
+    return;
+  }
+
+  const ratt = Number(fraga.ratt.svar);
+  const namn = Object.fromEntries(spelare.map((s) => [s.id, s.nickname]));
+
+  const narmast = svar
+    .map((s) => ({
+      namn: namn[s.player_id] ?? "?",
+      gissning: Number(s.svar),
+      avstand: Math.abs(Number(s.svar) - ratt),
+    }))
+    .sort((a, b) => a.avstand - b.avstand)
+    .slice(0, 3);
+
+  $("nummerfacit").innerHTML = `
+    <p class="nummersvar">${esc(fraga.ratt.svar)}</p>
+    ${narmast.length
+      ? `<ul class="narmast">${narmast
+          .map((n) => `<li><span>${esc(n.namn)}</span><strong>${esc(n.gissning)}</strong></li>`)
+          .join("")}</ul>`
+      : ""}`;
 }
 
 function ritaSvarsantal() {
@@ -338,6 +465,17 @@ $("visafacit").addEventListener("click", visaFacit);
 
 $("nasta").addEventListener("click", async () => {
   await supabase.rpc("quiz_nasta", { p_rum: rum.id });
+});
+
+$("fragemedia").addEventListener("click", (e) => {
+  if (!e.target.closest("#ljudknapp")) return;
+  if (!ljud.src) {
+    startaLjud(fraga.media);
+  } else if (ljud.paused) {
+    ljud.play();
+  } else {
+    ljud.pause();
+  }
 });
 
 async function avslutaRum() {
