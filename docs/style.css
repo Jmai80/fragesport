@@ -697,3 +697,41 @@ button.ljudknapp {
   font-size: 2rem;
   text-align: center;
 }
+
+
+/* ---------- Import från text ---------- */
+
+.vanster { text-align: left; }
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: var(--yta);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+}
+
+#importtext {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 1rem;
+}
+
+.importlista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.importlista li {
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  background: var(--yta);
+}
+
+.importlista li.importfel {
+  color: var(--fel);
+  background: rgba(185, 28, 28, 0.15);
+}

@@ -9,6 +9,7 @@ const sektioner = {
   quiz: $("quiz"),
   fragaform: $("fragaform"),
   konto: $("konto"),
+  import: $("import"),
 };
 
 let jag = null;             // inloggad användare
@@ -366,6 +367,154 @@ function sokVidEnter(falt, funktion) {
   });
 }
 
+// ---------- Import från text ----------
+
+const AI_INSTRUKTION = `Skriv en frågesport på svenska om [ÄMNE] med [ANTAL] frågor, anpassad för [MÅLGRUPP].
+
+Svara bara med frågorna, i exakt det här formatet, utan rubriker, numrering eller annan text:
+
+- Varje fråga är ett eget stycke, och styckena skiljs åt av en tom rad.
+- Första raden i stycket är frågan.
+- Flervalsfrågor: skriv 2–4 svarsalternativ på varsin rad under frågan. Sätt en stjärna (*) först på raden med det rätta svaret. Exakt ett alternativ ska vara rätt.
+- Årtals- eller sifferfrågor: skriv i stället en enda rad under frågan som börjar med = följt av det rätta svaret, ett mellanslag, ± och hur långt ifrån svaret man får vara för att få poäng.
+- Vill du ge en fråga mer eller mindre tid än 20 sekunder, lägg till en rad "tid: 30" (mellan 5 och 120).
+- Frågan får vara högst 300 tecken och varje svarsalternativ högst 100 tecken.
+
+Exempel:
+
+Vad heter Sveriges största sjö?
+Vättern
+*Vänern
+Mälaren
+Storsjön
+
+Vilket år vann ABBA Eurovision med Waterloo?
+= 1974 ± 5`;
+
+function tal(text) {
+  return Number(text.replace(/\s/g, "").replace(",", "."));
+}
+
+function tolkaImport(text) {
+  const stycken = text
+    .replace(/\r/g, "")
+    .split(/\n\s*\n/)
+    .map((s) =>
+      s
+        .split("\n")
+        .map((r) => r.replace(/\*\*(.+?)\*\*/g, "$1").trim()) // ta bort fetstil från AI-svar
+        .filter(Boolean)
+    )
+    .filter((s) => s.length);
+
+  return stycken.map((rader, i) => {
+    const nr = i + 1;
+    const fraga = rader[0].replace(/^(fråga\s*)?\d+[.):]\s*/i, "");
+    let tid = 20;
+    let resten = rader.slice(1);
+
+    // tid: 30
+    resten = resten.filter((r) => {
+      const m = r.match(/^tid\s*:\s*(\d+)/i);
+      if (m) tid = Math.min(120, Math.max(5, Number(m[1])));
+      return !m;
+    });
+
+    if (!fraga) return { nr, fel: "Frågan saknar text" };
+    if (fraga.length > 300) return { nr, fel: "Frågan är längre än 300 tecken" };
+
+    // Årtals- eller sifferfråga: = 1974 ± 5
+    const svarsrad = resten.find((r) => r.startsWith("="));
+    if (svarsrad) {
+      const m = svarsrad.match(/^=\s*(-?[\d\s.,]+?)\s*(?:(?:±|\+-|\+\/-)\s*([\d.,]+))?\s*$/);
+      if (!m) return { nr, fraga, fel: `Kunde inte läsa svaret "${svarsrad}"` };
+
+      const svar = tal(m[1]);
+      const marginal = m[2] ? tal(m[2]) : 10;
+      if (Number.isNaN(svar)) return { nr, fraga, fel: `"${m[1]}" är inget tal` };
+      if (!(marginal > 0)) return { nr, fraga, fel: "Marginalen måste vara större än 0" };
+
+      return {
+        nr,
+        rad: { typ: "nummer", fraga, alternativ: [], ratt: { svar, marginal }, tid_sekunder: tid },
+      };
+    }
+
+    // Flervalsfråga
+    const alternativ = resten.map((r) => {
+      let t = r.replace(/^[-•]\s+/, "");
+      const strykPrefix = () => (t = t.replace(/^[a-dA-D1-4][.)]\s+/, ""));
+      strykPrefix();
+      let ratt = false;
+      if (t.startsWith("*")) {
+        ratt = true;
+        t = t.slice(1).trim();
+        strykPrefix();
+      }
+      return { text: t, ratt };
+    });
+
+    if (alternativ.length < 2) return { nr, fraga, fel: "Behöver minst två svarsalternativ" };
+    if (alternativ.length > 4) return { nr, fraga, fel: "Högst fyra svarsalternativ" };
+    if (alternativ.some((a) => a.text.length > 100)) {
+      return { nr, fraga, fel: "Ett svarsalternativ är längre än 100 tecken" };
+    }
+
+    const antalRatt = alternativ.filter((a) => a.ratt).length;
+    if (antalRatt === 0) return { nr, fraga, fel: "Inget alternativ är markerat med *" };
+    if (antalRatt > 1) return { nr, fraga, fel: "Fler än ett alternativ är markerat med *" };
+
+    return {
+      nr,
+      rad: {
+        typ: "flerval",
+        fraga,
+        alternativ: alternativ.map((a) => a.text),
+        ratt: alternativ.findIndex((a) => a.ratt),
+        tid_sekunder: tid,
+      },
+    };
+  });
+}
+
+let importerade = [];
+
+function forhandsgranskaImport() {
+  const tolkat = tolkaImport($("importtext").value);
+  const felaktiga = tolkat.filter((t) => t.fel);
+  importerade = tolkat.filter((t) => t.rad).map((t) => t.rad);
+
+  $("importresultat").innerHTML = tolkat
+    .map((t) => {
+      if (t.fel) {
+        return `<li class="importfel"><strong>Fråga ${t.nr}:</strong> ${esc(t.fel)}${
+          t.fraga ? `<br><span class="info">${esc(t.fraga)}</span>` : ""
+        }</li>`;
+      }
+      const r = t.rad;
+      const svar =
+        r.typ === "nummer"
+          ? `Svar: ${esc(r.ratt.svar)} (±${esc(r.ratt.marginal)})`
+          : r.alternativ
+              .map((a, j) => (j === r.ratt ? `<b>✓ ${esc(a)}</b>` : esc(a)))
+              .join(" · ");
+      return `<li><strong>${t.nr}. ${esc(r.fraga)}</strong><br><span class="info">${svar} · ${r.tid_sekunder} s</span></li>`;
+    })
+    .join("");
+
+  const knapp = $("importera");
+  if (felaktiga.length) {
+    knapp.disabled = true;
+    knapp.textContent = `Rätta ${felaktiga.length} fel först`;
+  } else if (!importerade.length) {
+    knapp.disabled = true;
+    knapp.textContent = "Lägg till frågorna";
+  } else {
+    knapp.disabled = false;
+    knapp.textContent = `Lägg till ${importerade.length} ${importerade.length === 1 ? "fråga" : "frågor"}`;
+  }
+}
+
 // ---------- Uppstart ----------
 
 const { data: { session } } = await supabase.auth.getSession();
@@ -629,4 +778,46 @@ $("losenform").addEventListener("submit", async (e) => {
 $("loggaut").addEventListener("click", async () => {
   await supabase.auth.signOut();
   visa("login");
+});
+
+// ---------- Import ----------
+
+$("tillimport").addEventListener("click", () => {
+  $("importtext").value = "";
+  $("kopierastatus").textContent = "";
+  forhandsgranskaImport();
+  visa("import");
+  $("importtext").focus();
+});
+
+$("importtillbaka").addEventListener("click", () => visa("quiz"));
+
+$("importtext").addEventListener("input", forhandsgranskaImport);
+
+$("kopieraprompt").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(AI_INSTRUKTION);
+    $("kopierastatus").textContent =
+      "Kopierat. Klistra in hos AI-tjänsten och byt ut det som står inom hakparentes.";
+  } catch {
+    $("kopierastatus").textContent = "Kunde inte kopiera automatiskt.";
+  }
+});
+
+$("importera").addEventListener("click", async () => {
+  if (!importerade.length) return;
+  $("importera").disabled = true;
+
+  const forsta = Math.max(0, ...fragor.map((f) => f.position)) + 1;
+  const rader = importerade.map((r, i) => ({ ...r, quiz_id: quiz.id, position: forsta + i }));
+
+  const { error } = await supabase.from("quiz_questions").insert(rader);
+  if (error) {
+    alert(error.message);
+    $("importera").disabled = false;
+    return;
+  }
+
+  await laddaFragor();
+  visa("quiz");
 });

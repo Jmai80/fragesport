@@ -45,6 +45,7 @@
       <h2>Frågor</h2>
       <ol id="fragor" class="fragelista"></ol>
       <button id="nyfraga">Lägg till fråga</button>
+      <button id="tillimport" class="diskret">Importera frågor från text</button>
       <button id="raderaquiz" class="diskret farlig">Radera frågesporten</button>
     </section>
 
@@ -151,6 +152,31 @@
       <p id="kontostatus" class="antal"></p>
       <button id="kontotillbaka" class="diskret">← Tillbaka</button>
       <button id="loggaut" class="diskret">Logga ut</button>
+    </section>
+
+    <section id="import" hidden>
+      <nav class="meny">
+        <button id="importtillbaka" class="liten diskret">← Tillbaka till frågesporten</button>
+      </nav>
+      <h1>Importera frågor</h1>
+      <p class="vanster">
+        En fråga per stycke, med en tom rad emellan. Första raden är frågan.
+        Under den skriver du 2–4 svarsalternativ, med en stjärna före det rätta.
+        För årtals- och sifferfrågor skriver du i stället en rad som börjar med
+        <code>=</code>, till exempel <code>= 1974 ± 5</code>.
+        Lägg till en rad <code>tid: 30</code> om en fråga ska ha annan tid än 20 sekunder.
+      </p>
+      <button id="kopieraprompt" class="liten diskret">Kopiera instruktion till en AI-tjänst</button>
+      <p id="kopierastatus" class="antal"></p>
+      <textarea id="importtext" rows="14" spellcheck="false" placeholder="Vad heter Sveriges största sjö?
+Vättern
+*Vänern
+Mälaren
+
+Vilket år vann ABBA Eurovision?
+= 1974 ± 5"></textarea>
+      <ul id="importresultat" class="importlista"></ul>
+      <button id="importera" disabled>Lägg till frågorna</button>
     </section>
   </main>
 </body>
