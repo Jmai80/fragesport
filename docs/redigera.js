@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { sokLatar, hamtaLat, sokBilder, bildUrl } from "./media.js";
+import { bekrafta, meddela } from "./dialog.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -274,7 +275,7 @@ async function spela(id, start = 0) {
   if (!url) {
     const lat = await hamtaLat(id);
     url = lat?.ljud;
-    if (!url) return alert("Klippet gick inte att hämta");
+    if (!url) return meddela("Klippet gick inte att hämta");
     ljudCache.set(id, url);
   }
 
@@ -542,7 +543,7 @@ $("nyquiz").addEventListener("click", async () => {
     .insert({ titel: "Ny frågesport" })
     .select("id")
     .single();
-  if (error) return alert(error.message);
+  if (error) return meddela(error.message);
 
   await oppnaQuiz(data.id);
   $("titel").select();
@@ -558,7 +559,7 @@ $("lista").addEventListener("click", async (e) => {
     const { data: nyttId, error } = await supabase.rpc("quiz_kopiera", {
       p_quiz: kopiera.dataset.kopiera,
     });
-    if (error) return alert(error.message);
+    if (error) return meddela(error.message);
     await oppnaQuiz(nyttId);
   }
 });
@@ -578,7 +579,12 @@ $("quizform").addEventListener("submit", async (e) => {
 });
 
 $("raderaquiz").addEventListener("click", async () => {
-  if (!confirm(`Radera "${quiz.titel}" och alla dess frågor? Det går inte att ångra.`)) return;
+  if (
+    !(await bekrafta(`Radera "${quiz.titel}" och alla dess frågor? Det går inte att ångra.`, {
+      ok: "Radera",
+      farlig: true,
+    }))
+  ) return;
   await supabase.from("quiz_quizzes").delete().eq("id", quiz.id);
   await visaLista();
 });
@@ -598,7 +604,7 @@ $("fragor").addEventListener("click", async (e) => {
   if (andra) oppnaFragaform(fragor.find((f) => f.id === andra));
 
   if (radera) {
-    if (!confirm("Radera frågan?")) return;
+    if (!(await bekrafta("Radera frågan?", { ok: "Radera", farlig: true }))) return;
     await supabase.from("quiz_questions").delete().eq("id", radera);
     await laddaFragor();
   }
@@ -667,7 +673,7 @@ $("bildresultat").addEventListener("click", (e) => {
 
 $("bildurlknapp").addEventListener("click", () => {
   const url = $("bildurl").value.trim();
-  if (!url.startsWith("https://")) return alert("Adressen måste börja med https://");
+  if (!url.startsWith("https://")) return meddela("Adressen måste börja med https://");
   valtMedia = { typ: "bild", kalla: "url", ref: url };
   visaFlik(null);
   ritaValtMedia();
@@ -813,7 +819,7 @@ $("importera").addEventListener("click", async () => {
 
   const { error } = await supabase.from("quiz_questions").insert(rader);
   if (error) {
-    alert(error.message);
+    await meddela(error.message);
     $("importera").disabled = false;
     return;
   }

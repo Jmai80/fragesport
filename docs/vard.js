@@ -1,6 +1,7 @@
 import { supabase } from "./supabase.js";
 import QRCode from "https://esm.sh/qrcode@1";
 import { hamtaLat, bildUrl } from "./media.js";
+import { bekrafta, meddela } from "./dialog.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -487,7 +488,7 @@ async function avslutaRum() {
 }
 
 $("avsluta").addEventListener("click", async () => {
-  if (!confirm("Avsluta rummet? Alla spelare kopplas bort.")) return;
+  if (!(await bekrafta("Avsluta rummet? Alla spelare kopplas bort.", { ok: "Avsluta rummet", farlig: true }))) return;
   await avslutaRum();
 });
 
@@ -496,11 +497,17 @@ $("klar").addEventListener("click", avslutaRum);
 // Tillbaka till lobbyn: spelarna är kvar, svaren och poängen nollställs
 async function tillbakaTillLobbyn() {
   const { error } = await supabase.rpc("quiz_till_lobbyn", { p_rum: rum.id });
-  if (error) alert(error.message);
+  if (error) await meddela(error.message);
 }
 
 $("avbrytspel").addEventListener("click", async () => {
-  if (!confirm("Avbryta spelet? Poängen nollställs och alla går tillbaka till lobbyn.")) return;
+  if (
+    !(await bekrafta("Avbryta spelet? Poängen nollställs och alla går tillbaka till lobbyn.", {
+      ok: "Avbryt spelet",
+      avbryt: "Fortsätt spela",
+      farlig: true,
+    }))
+  ) return;
   await tillbakaTillLobbyn();
 });
 
@@ -509,7 +516,7 @@ $("igen").addEventListener("click", tillbakaTillLobbyn);
 $("spelarlista").addEventListener("click", async (e) => {
   const knapp = e.target.closest("button.spelare");
   if (!knapp) return;
-  if (!confirm(`Ta bort ${knapp.textContent}?`)) return;
+  if (!(await bekrafta(`Ta bort ${knapp.textContent} från rummet?`, { ok: "Ta bort", farlig: true }))) return;
 
   const id = knapp.dataset.id;
   await supabase.from("quiz_players").delete().eq("id", id);
