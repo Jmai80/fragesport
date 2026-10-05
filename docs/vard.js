@@ -205,6 +205,8 @@ async function rendera() {
   }
 
   if (rum.status === "lobby") {
+    fraga = null;
+    svar = [];
     ritaSpelare();
     visa("lobby");
     return;
@@ -490,6 +492,19 @@ $("avsluta").addEventListener("click", async () => {
 });
 
 $("klar").addEventListener("click", avslutaRum);
+
+// Tillbaka till lobbyn: spelarna är kvar, svaren och poängen nollställs
+async function tillbakaTillLobbyn() {
+  const { error } = await supabase.rpc("quiz_till_lobbyn", { p_rum: rum.id });
+  if (error) alert(error.message);
+}
+
+$("avbrytspel").addEventListener("click", async () => {
+  if (!confirm("Avbryta spelet? Poängen nollställs och alla går tillbaka till lobbyn.")) return;
+  await tillbakaTillLobbyn();
+});
+
+$("igen").addEventListener("click", tillbakaTillLobbyn);
 
 $("spelarlista").addEventListener("click", async (e) => {
   const knapp = e.target.closest("button.spelare");

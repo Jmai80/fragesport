@@ -112,6 +112,9 @@ async function rendera() {
 
   switch (rum.status) {
     case "lobby":
+      // Ett avbrutet spel börjar om från fråga 1, så glöm tidigare svar
+      svaratPa = null;
+      mittSvar = null;
       visa("vantar");
       break;
     case "fraga":
