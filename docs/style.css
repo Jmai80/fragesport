@@ -778,3 +778,25 @@ button.farlig-knapp {
   background: #dc2626;
   color: #fff;
 }
+
+
+/* ---------- Media i importen ---------- */
+
+.importmedia {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--yta);
+}
+
+.importmedia img {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  object-fit: cover;
+  border-radius: 0.4rem;
+}
+
+.importmedia-fel { color: var(--fel); }

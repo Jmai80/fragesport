@@ -164,7 +164,12 @@
         Under den skriver du 2–4 svarsalternativ, med en stjärna före det rätta.
         För årtals- och sifferfrågor skriver du i stället en rad som börjar med
         <code>=</code>, till exempel <code>= 1974 ± 5</code>.
-        Lägg till en rad <code>tid: 30</code> om en fråga ska ha annan tid än 20 sekunder.
+      </p>
+      <p class="vanster">
+        Valfria rader: <code>bild: Eiffel Tower</code> hämtar en bild från Wikimedia Commons,
+        <code>musik: ABBA Waterloo</code> hämtar ett ljudklipp, <code>start: 15</code>
+        låter klippet börja senare och <code>tid: 30</code> ändrar tiden från 20 sekunder.
+        Första träffen väljs automatiskt, och du kan byta i förhandsgranskningen.
       </p>
       <button id="kopieraprompt" class="liten diskret">Kopiera instruktion till en AI-tjänst</button>
       <p id="kopierastatus" class="antal"></p>
@@ -174,7 +179,13 @@ Vättern
 Mälaren
 
 Vilket år vann ABBA Eurovision?
-= 1974 ± 5"></textarea>
+= 1974 ± 5
+
+I vilken stad står det här tornet?
+bild: Eiffel Tower
+London
+*Paris
+Rom"></textarea>
       <ul id="importresultat" class="importlista"></ul>
       <button id="importera" disabled>Lägg till frågorna</button>
     </section>

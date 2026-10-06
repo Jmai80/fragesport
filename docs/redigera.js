@@ -381,6 +381,12 @@ Svara bara med frågorna, i exakt det här formatet, utan rubriker, numrering el
 - Vill du ge en fråga mer eller mindre tid än 20 sekunder, lägg till en rad "tid: 30" (mellan 5 och 120).
 - Frågan får vara högst 300 tecken och varje svarsalternativ högst 100 tecken.
 
+Bilder och musik (valfritt):
+
+- Bildfrågor: lägg till en rad "bild: " följt av ett kort och träffsäkert sökord på engelska, till exempel "bild: Eiffel Tower". Bilden hämtas från Wikimedia Commons och visas tillsammans med frågan. Undvik att frågan eller sökordet avslöjar svaret om bilden är ledtråden.
+- Musikfrågor: lägg till en rad "musik: " följt av artist och låttitel, till exempel "musik: ABBA Waterloo". Ett 30 sekunders klipp av låten spelas medan spelarna svarar. Vill du att klippet ska börja senare i låten, lägg till en rad "start: 15" (mellan 0 och 25 sekunder).
+- Varje fråga kan ha högst en bild eller en låt.
+
 Exempel:
 
 Vad heter Sveriges största sjö?
@@ -390,7 +396,22 @@ Mälaren
 Storsjön
 
 Vilket år vann ABBA Eurovision med Waterloo?
-= 1974 ± 5`;
+= 1974 ± 5
+
+I vilken stad står det här tornet?
+bild: Eiffel Tower
+London
+*Paris
+Rom
+Berlin
+
+Vilken artist sjunger det här?
+musik: ABBA Dancing Queen
+start: 10
+*ABBA
+Roxette
+Ace of Base
+Europe`;
 
 function tal(text) {
   return Number(text.replace(/\s/g, "").replace(",", "."));
@@ -412,14 +433,22 @@ function tolkaImport(text) {
     const nr = i + 1;
     const fraga = rader[0].replace(/^(fråga\s*)?\d+[.):]\s*/i, "");
     let tid = 20;
-    let resten = rader.slice(1);
+    let start = 0;
+    let sokMedia = null;
 
-    // tid: 30
-    resten = resten.filter((r) => {
-      const m = r.match(/^tid\s*:\s*(\d+)/i);
-      if (m) tid = Math.min(120, Math.max(5, Number(m[1])));
-      return !m;
+    // Rader med inställningar: tid, bild, musik och start
+    const resten = rader.slice(1).filter((r) => {
+      const m = r.match(/^(tid|bild|musik|ljud|start)\s*:\s*(.*)$/i);
+      if (!m) return true;
+      const nyckel = m[1].toLowerCase();
+      const varde = m[2].trim();
+      if (nyckel === "tid") tid = Math.min(120, Math.max(5, tal(varde) || 20));
+      if (nyckel === "start") start = Math.min(25, Math.max(0, tal(varde) || 0));
+      if (nyckel === "bild" && varde) sokMedia = { typ: "bild", sok: varde };
+      if ((nyckel === "musik" || nyckel === "ljud") && varde) sokMedia = { typ: "ljud", sok: varde };
+      return false;
     });
+    if (sokMedia?.typ === "ljud") sokMedia.start = start;
 
     if (!fraga) return { nr, fel: "Frågan saknar text" };
     if (fraga.length > 300) return { nr, fel: "Frågan är längre än 300 tecken" };
@@ -437,6 +466,7 @@ function tolkaImport(text) {
 
       return {
         nr,
+        sokMedia,
         rad: { typ: "nummer", fraga, alternativ: [], ratt: { svar, marginal }, tid_sekunder: tid },
       };
     }
@@ -467,6 +497,7 @@ function tolkaImport(text) {
 
     return {
       nr,
+      sokMedia,
       rad: {
         typ: "flerval",
         fraga,
@@ -478,20 +509,96 @@ function tolkaImport(text) {
   });
 }
 
-let importerade = [];
+// ---------- Mediasökning vid import ----------
 
+// Samma sökning görs bara en gång, även om texten ändras och tolkas om
+const mediaCache = new Map();
+
+function sokMediaCachat({ typ, sok }) {
+  if (typ === "bild" && sok.startsWith("https://")) return Promise.resolve([{ url: sok }]);
+
+  const nyckel = `${typ}:${sok.toLowerCase()}`;
+  if (!mediaCache.has(nyckel)) {
+    const lofte = typ === "bild" ? sokBilder(sok) : sokLatar(sok);
+    mediaCache.set(nyckel, lofte);
+    lofte.catch(() => mediaCache.delete(nyckel)); // försök igen nästa gång om sökningen misslyckades
+  }
+  return mediaCache.get(nyckel);
+}
+
+// Gör om den valda träffen till samma media-objekt som mediaväljaren skapar
+function importMedia(t) {
+  const traff = t.traffar?.[t.valt];
+  if (!t.sokMedia || !traff) return null;
+
+  if (t.sokMedia.typ === "bild") {
+    if (traff.url) return { typ: "bild", kalla: "url", ref: traff.url };
+    return {
+      typ: "bild",
+      kalla: "wikimedia",
+      ref: traff.ref,
+      upphov: traff.upphov,
+      licens: traff.licens,
+    };
+  }
+
+  return {
+    typ: "ljud",
+    kalla: "itunes",
+    ref: traff.id,
+    start: t.sokMedia.start ?? 0,
+    titel: traff.titel,
+    artist: traff.artist,
+    ar: traff.ar,
+    bild: traff.bild,
+  };
+}
+
+let importerade = [];  // tolkade frågor: { nr, rad, sokMedia, traffar, valt } eller { nr, fel }
+let importTimer = null;
+let importVersion = 0;
+
+// Vänta tills man slutat skriva en stund innan texten tolkas och media söks
 function forhandsgranskaImport() {
-  const tolkat = tolkaImport($("importtext").value);
-  const felaktiga = tolkat.filter((t) => t.fel);
-  importerade = tolkat.filter((t) => t.rad).map((t) => t.rad);
+  clearTimeout(importTimer);
+  importTimer = setTimeout(tolkaOchSok, 600);
+}
 
-  $("importresultat").innerHTML = tolkat
-    .map((t) => {
+async function tolkaOchSok() {
+  const version = ++importVersion;
+  importerade = tolkaImport($("importtext").value);
+  ritaImport();
+
+  await Promise.all(
+    importerade
+      .filter((t) => t.sokMedia && !t.fel)
+      .map(async (t) => {
+        try {
+          t.traffar = await sokMediaCachat(t.sokMedia);
+        } catch {
+          t.traffar = [];
+        }
+        t.valt = 0;
+        if (t.sokMedia.typ === "ljud") t.traffar.forEach((l) => ljudCache.set(l.id, l.ljud));
+        // Har texten ändrats under tiden hör resultatet till en gammal tolkning
+        if (version === importVersion) ritaImport();
+      })
+  );
+}
+
+function ritaImport() {
+  let antalFel = 0;
+  let antalSoker = 0;
+
+  $("importresultat").innerHTML = importerade
+    .map((t, index) => {
       if (t.fel) {
+        antalFel++;
         return `<li class="importfel"><strong>Fråga ${t.nr}:</strong> ${esc(t.fel)}${
           t.fraga ? `<br><span class="info">${esc(t.fraga)}</span>` : ""
         }</li>`;
       }
+
       const r = t.rad;
       const svar =
         r.typ === "nummer"
@@ -499,20 +606,65 @@ function forhandsgranskaImport() {
           : r.alternativ
               .map((a, j) => (j === r.ratt ? `<b>✓ ${esc(a)}</b>` : esc(a)))
               .join(" · ");
-      return `<li><strong>${t.nr}. ${esc(r.fraga)}</strong><br><span class="info">${svar} · ${r.tid_sekunder} s</span></li>`;
+
+      let mediaHtml = "";
+      if (t.sokMedia) {
+        const ikon = t.sokMedia.typ === "bild" ? "🖼" : "🎵";
+
+        if (!t.traffar) {
+          antalSoker++;
+          mediaHtml = `<div class="importmedia"><span class="info">${ikon} Söker efter "${esc(t.sokMedia.sok)}" …</span></div>`;
+        } else if (!t.traffar.length) {
+          antalFel++;
+          mediaHtml = `<div class="importmedia importmedia-fel">${ikon} Ingen träff för "${esc(t.sokMedia.sok)}". Ändra sökordet eller ta bort raden.</div>`;
+        } else {
+          const traff = t.traffar[t.valt];
+          const m = importMedia(t);
+          const bild = m.typ === "ljud" ? m.bild : traff.tumnagel ?? traff.url;
+          const beskrivning =
+            m.typ === "ljud"
+              ? `${esc(m.titel)} – ${esc(m.artist)}${m.ar ? ` (${esc(m.ar)})` : ""}${m.start ? ` · från ${m.start} s` : ""}`
+              : m.kalla === "url"
+                ? "Egen bildadress"
+                : `${esc(m.ref)}`;
+
+          mediaHtml = `
+            <div class="importmedia">
+              ${bild ? `<img src="${esc(bild)}" alt="">` : ""}
+              <div class="valt-info">
+                <span class="info">${ikon} ${beskrivning}</span>
+                <span class="info">Träff ${t.valt + 1} av ${t.traffar.length} för "${esc(t.sokMedia.sok)}"</span>
+              </div>
+              ${m.typ === "ljud"
+                ? `<button type="button" class="liten diskret" data-spela="${esc(m.ref)}" data-start="${m.start}" aria-label="Provlyssna">▶</button>`
+                : ""}
+              ${t.traffar.length > 1
+                ? `<button type="button" class="liten diskret" data-nasta-traff="${index}">Nästa träff</button>`
+                : ""}
+            </div>`;
+        }
+      }
+
+      return `<li><strong>${t.nr}. ${esc(r.fraga)}</strong><br><span class="info">${svar} · ${r.tid_sekunder} s</span>${mediaHtml}</li>`;
     })
     .join("");
 
+  uppdateraSpelknappar();
+
+  const antalOk = importerade.filter((t) => !t.fel).length;
   const knapp = $("importera");
-  if (felaktiga.length) {
+  if (antalFel) {
     knapp.disabled = true;
-    knapp.textContent = `Rätta ${felaktiga.length} fel först`;
-  } else if (!importerade.length) {
+    knapp.textContent = `Rätta ${antalFel} fel först`;
+  } else if (antalSoker) {
+    knapp.disabled = true;
+    knapp.textContent = "Söker efter bilder och musik …";
+  } else if (!antalOk) {
     knapp.disabled = true;
     knapp.textContent = "Lägg till frågorna";
   } else {
     knapp.disabled = false;
-    knapp.textContent = `Lägg till ${importerade.length} ${importerade.length === 1 ? "fråga" : "frågor"}`;
+    knapp.textContent = `Lägg till ${antalOk} ${antalOk === 1 ? "fråga" : "frågor"}`;
   }
 }
 
@@ -791,7 +943,7 @@ $("loggaut").addEventListener("click", async () => {
 $("tillimport").addEventListener("click", () => {
   $("importtext").value = "";
   $("kopierastatus").textContent = "";
-  forhandsgranskaImport();
+  tolkaOchSok();
   visa("import");
   $("importtext").focus();
 });
@@ -799,6 +951,22 @@ $("tillimport").addEventListener("click", () => {
 $("importtillbaka").addEventListener("click", () => visa("quiz"));
 
 $("importtext").addEventListener("input", forhandsgranskaImport);
+
+$("importresultat").addEventListener("click", async (e) => {
+  const knapp = e.target.closest("button");
+  if (!knapp) return;
+
+  if (knapp.dataset.spela) {
+    await spela(knapp.dataset.spela, Number(knapp.dataset.start) || 0);
+  }
+
+  if (knapp.dataset.nastaTraff) {
+    ljudspelare.pause();
+    const t = importerade[Number(knapp.dataset.nastaTraff)];
+    t.valt = (t.valt + 1) % t.traffar.length;
+    ritaImport();
+  }
+});
 
 $("kopieraprompt").addEventListener("click", async () => {
   try {
@@ -811,11 +979,17 @@ $("kopieraprompt").addEventListener("click", async () => {
 });
 
 $("importera").addEventListener("click", async () => {
-  if (!importerade.length) return;
+  const giltiga = importerade.filter((t) => !t.fel);
+  if (!giltiga.length) return;
   $("importera").disabled = true;
 
   const forsta = Math.max(0, ...fragor.map((f) => f.position)) + 1;
-  const rader = importerade.map((r, i) => ({ ...r, quiz_id: quiz.id, position: forsta + i }));
+  const rader = giltiga.map((t, i) => ({
+    ...t.rad,
+    media: importMedia(t),
+    quiz_id: quiz.id,
+    position: forsta + i,
+  }));
 
   const { error } = await supabase.from("quiz_questions").insert(rader);
   if (error) {
